@@ -15,7 +15,15 @@ export async function POST(request: Request) {
 
         const { token } = await registerUser(parsed);
 
-        return NextResponse.json({ token }, { status: 201 });
+        const res = NextResponse.json({ token }, { status: 201 });
+        res.cookies.set('auth_token', token, {
+            httpOnly: true,
+            secure: true,
+            sameSite: 'lax',
+            path: '/',
+            maxAge: 60 * 60 * 24 * 7,
+        });
+        return res;
     } catch (error: any) {
         const message = error?.message ?? "Failed to register";
         const status = message === "User already exists" ? 400 : 500;

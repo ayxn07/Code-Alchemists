@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 
 const MONGODB_URI = process.env.MONGODB_URI;
+const MONGODB_DB = process.env.MONGODB_DB || "code-alchemists";
 
 if (!MONGODB_URI) {
     throw new Error("MONGODB_URI is not set in environment variables");
@@ -21,9 +22,15 @@ export async function connectToDatabase() {
 
     if (!cached?.promise) {
         if (cached && MONGODB_URI) {
-            cached.promise = mongoose.connect(MONGODB_URI).then((mongooseInstance) => {
-                return mongooseInstance;
-            });
+            cached.promise = mongoose
+                .connect(MONGODB_URI, { dbName: MONGODB_DB })
+                .then((mongooseInstance) => {
+                    return mongooseInstance;
+                })
+                .catch((err) => {
+                    console.error("Failed to connect to MongoDB:", err?.message || err);
+                    throw err;
+                });
         }
     }
 
