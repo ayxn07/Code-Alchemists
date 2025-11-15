@@ -650,19 +650,26 @@ export default function CVPage() {
 
     const handleDownloadHarvardCV = async (resume: Resume) => {
         try {
-            const doc = new jsPDF();
+            const doc = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'letter'
+            });
+
             const pageWidth = doc.internal.pageSize.getWidth();
             const pageHeight = doc.internal.pageSize.getHeight();
-            const leftMargin = 20;
-            const rightMargin = 20;
+            const leftMargin = 25.4; // 1 inch
+            const rightMargin = 25.4; // 1 inch
+            const topMargin = 25.4; // 1 inch
+            const bottomMargin = 25.4; // 1 inch
             const contentWidth = pageWidth - leftMargin - rightMargin;
-            let yPos = 20;
+            let yPos = topMargin;
 
             // Helper to check page overflow
-            const checkPageOverflow = (neededSpace: number = 10) => {
-                if (yPos + neededSpace > pageHeight - 20) {
+            const checkPageOverflow = (neededSpace: number = 8) => {
+                if (yPos + neededSpace > pageHeight - bottomMargin) {
                     doc.addPage();
-                    yPos = 20;
+                    yPos = topMargin;
                     return true;
                 }
                 return false;
@@ -678,37 +685,58 @@ export default function CVPage() {
 
             // Extract name - try multiple patterns
             let name = resume.title;
-            const firstLine = content.split('\n')[0]?.trim();
-            if (firstLine && firstLine.length > 2 && firstLine.length < 50) {
+            const contentLines = content.split('\n').filter(l => l.trim());
+            const firstLine = contentLines[0]?.trim();
+            if (firstLine && firstLine.length > 2 && firstLine.length < 50 && !firstLine.includes('@')) {
                 name = firstLine;
             }
 
-            // Extract contact info (email, phone, location, linkedin)
-            const emailMatch = content.match(/[\w\.-]+@[\w\.-]+\.\w+/);
-            const phoneMatch = content.match(/\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/);
-            const locationMatch = content.match(/([A-Z][a-zA-Z\s]+,\s*[A-Z]{2})/);
-            const linkedinMatch = content.match(/(linkedin\.com\/in\/[\w-]+)/i);
+            // Extract contact info with better regex
+            const emailMatch = content.match(/[\w\.-]+@[\w\.-]+\.\w{2,}/);
+            const phoneMatch = content.match(/[\+]?[\(]?[0-9]{3}[\)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}/);
+            const locationMatch = content.match(/([A-Z][a-zA-Z\s]+,\s*[A-Z]{2,})|([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*,\s*[A-Z]{2})/);
+            const linkedinMatch = content.match(/(?:linkedin\.com\/in\/|\/in\/)[\w\-]+/i);
+            const githubMatch = content.match(/(?:github\.com\/)[\w\-]+/i);
+            const websiteMatch = content.match(/(?:https?:\/\/)?(?:www\.)?[\w\-]+\.(?:com|dev|io|net)/i);
 
-            // HEADER - Name (centered, bold, larger font)
+            // HEADER - Name (centered, bold, 16pt)
             doc.setFont('times', 'bold');
-            doc.setFontSize(14);
-            const nameWidth = doc.getTextWidth(name.toUpperCase());
-            doc.text(name.toUpperCase(), (pageWidth - nameWidth) / 2, yPos);
+            doc.setFontSize(16);
+            doc.text(name.toUpperCase(), pageWidth / 2, yPos, { align: 'center' });
             yPos += 5;
 
-            // Contact info (centered, smaller font)
+            // Contact info (centered, 10pt, in 2 lines if needed)
             doc.setFont('times', 'normal');
             doc.setFontSize(10);
             const contactParts = [];
-            if (locationMatch) contactParts.push(locationMatch[1]);
-            if (phoneMatch) contactParts.push(`P: ${phoneMatch[0]}`);
-            if (emailMatch) contactParts.push(emailMatch[0]);
-            if (linkedinMatch) contactParts.push(linkedinMatch[1]);
 
-            const contactLine = contactParts.join(' | ');
-            const contactWidth = doc.getTextWidth(contactLine);
-            doc.text(contactLine, (pageWidth - contactWidth) / 2, yPos);
-            yPos += 8;
+            if (emailMatch) contactParts.push(emailMatch[0]);
+            if (phoneMatch) contactParts.push(phoneMatch[0].replace(/\s+/g, ''));
+            if (locationMatch) contactParts.push(locationMatch[0]);
+
+            const contactLine1 = contactParts.join(' • ');
+            doc.text(contactLine1, pageWidth / 2, yPos, { align: 'center' });
+            yPos += 4;
+
+            // Second line for URLs
+            const urlParts = [];
+            if (linkedinMatch) urlParts.push(linkedinMatch[0].replace('linkedin.com/in/', 'LinkedIn: '));
+            if (githubMatch) urlParts.push(githubMatch[0].replace('github.com/', 'GitHub: '));
+            if (websiteMatch && !websiteMatch[0].includes(emailMatch?.[0] || '')) urlParts.push(websiteMatch[0]);
+
+            if (urlParts.length > 0) {
+                const contactLine2 = urlParts.join(' • ');
+                doc.text(contactLine2, pageWidth / 2, yPos, { align: 'center' });
+                yPos += 6;
+            } else {
+                yPos += 4;
+            }
+
+            // Add a thin line separator
+            doc.setDrawColor(0);
+            doc.setLineWidth(0.3);
+            doc.line(leftMargin, yPos, pageWidth - rightMargin, yPos);
+            yPos += 6;
 
             // Parse sections with better detection
             const commonSections = [
@@ -762,16 +790,18 @@ export default function CVPage() {
             console.log('Parsed sections:', sections.map(s => ({ title: s.title, contentLength: s.content.length })));
 
             // Render each section
-            sections.forEach(section => {
+            sections.forEach((section, sectionIdx) => {
+                if (sectionIdx > 0) {
+                    yPos += 2; // Extra space between sections
+                }
                 checkPageOverflow(15);
 
-                // Section header with underline
+                // Section header - Harvard style (11pt bold, full underline)
                 doc.setFont('times', 'bold');
-                doc.setFontSize(10);
+                doc.setFontSize(11);
                 doc.text(section.title, leftMargin, yPos);
 
-                // Underline
-                const headerWidth = doc.getTextWidth(section.title);
+                // Full-width underline
                 doc.setDrawColor(0);
                 doc.setLineWidth(0.5);
                 doc.line(leftMargin, yPos + 1, pageWidth - rightMargin, yPos + 1);
@@ -784,69 +814,108 @@ export default function CVPage() {
                 const contentLines = section.content.split('\n').filter(l => l.trim());
 
                 contentLines.forEach((line, idx) => {
-                    checkPageOverflow(6);
-
                     const trimmed = line.trim();
                     if (!trimmed) return;
 
-                    // Check if it's a job/organization header (bold)
-                    const isOrgHeader = /^[A-Z\s&]+$/.test(trimmed) && trimmed.length < 60;
-                    const isJobTitle = /^[A-Z][a-zA-Z\s,\-\/]+$/.test(trimmed) && !isOrgHeader && trimmed.length < 80;
+                    checkPageOverflow(6);
 
-                    // Check for dates on the right
-                    const dateMatch = line.match(/\s{2,}(.+\d{4})$/);
-                    let mainText = line;
+                    // Detect date patterns (for right alignment)
+                    const datePattern = /(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+\d{4}[\s\-–—]+(?:Present|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s*\d{0,4}|\d{1,2}\/\d{4}\s*[-–—]\s*(?:\d{1,2}\/\d{4}|Present)|\d{4}\s*[-–—]\s*(?:\d{4}|Present)/i;
+                    const dateMatch = trimmed.match(datePattern);
+
+                    // Detect entry headers (company names, titles) - usually before dates or ALL CAPS
+                    const isAllCaps = /^[A-Z][A-Z\s&\.,\-]+$/.test(trimmed) && trimmed.length < 70;
+                    const hasDate = dateMatch !== null;
+                    const isTitleLine = hasDate || /^[A-Z][a-zA-Z\s,\-\/&]+(\||–|—)/.test(trimmed);
+
+                    // Split line into main text and date (if date on same line)
+                    let mainText = trimmed;
                     let dateText = '';
-
                     if (dateMatch) {
-                        dateText = dateMatch[1].trim();
-                        mainText = line.substring(0, dateMatch.index).trim();
+                        const dateIndex = trimmed.indexOf(dateMatch[0]);
+                        mainText = trimmed.substring(0, dateIndex).trim();
+                        dateText = dateMatch[0].trim();
+                        // Remove separators before date
+                        mainText = mainText.replace(/[\|,]\s*$/, '').trim();
                     }
 
-                    // Bullet points
-                    if (trimmed.startsWith('•') || trimmed.startsWith('-') || trimmed.startsWith('*') || trimmed.match(/^[\u2022\u2023\u25E6\u2043\u2219]/)) {
+                    // Bullet points (Harvard style uses •)
+                    if (trimmed.match(/^[•\-\*\u2022\u2023\u25E6\u2043\u2219]/)) {
                         const bulletText = trimmed.replace(/^[•\-\*\u2022\u2023\u25E6\u2043\u2219]\s*/, '').trim();
                         doc.setFont('times', 'normal');
-                        doc.text('•', leftMargin + 3, yPos);
-                        const wrapped = doc.splitTextToSize(bulletText, contentWidth - 8);
+                        doc.setFontSize(10);
+
+                        // Render bullet symbol
+                        doc.text('•', leftMargin + 5, yPos);
+
+                        // Wrap and render bullet text
+                        const bulletIndent = 10;
+                        const wrapped = doc.splitTextToSize(bulletText, contentWidth - bulletIndent);
                         wrapped.forEach((wLine: string, wIdx: number) => {
-                            if (wIdx > 0) {
-                                checkPageOverflow(5);
-                            }
-                            doc.text(wLine, leftMargin + 8, yPos);
+                            if (wIdx > 0) checkPageOverflow(4);
+                            doc.text(wLine, leftMargin + bulletIndent, yPos);
                             yPos += 4;
                         });
+                        yPos += 0.5; // Small gap after bullet
                     }
-                    // Organization/Job headers
-                    else if (isOrgHeader || isJobTitle) {
-                        doc.setFont('times', isOrgHeader ? 'bold' : 'italic');
+                    // Company/Organization names (ALL CAPS, bold)
+                    else if (isAllCaps && trimmed.length > 3) {
+                        checkPageOverflow(7);
+                        doc.setFont('times', 'bold');
+                        doc.setFontSize(10);
                         doc.text(mainText, leftMargin, yPos);
+
+                        // Date on right if present
                         if (dateText) {
-                            doc.setFont('times', 'italic');
-                            const dateWidth = doc.getTextWidth(dateText);
-                            doc.text(dateText, pageWidth - rightMargin - dateWidth, yPos);
+                            doc.setFont('times', 'normal');
+                            doc.setFontSize(10);
+                            doc.text(dateText, pageWidth - rightMargin, yPos, { align: 'right' });
                         }
                         yPos += 5;
                     }
-                    // Regular content
+                    // Job titles / Position lines (Title case with dates)
+                    else if (isTitleLine) {
+                        checkPageOverflow(7);
+                        doc.setFont('times', 'italic');
+                        doc.setFontSize(10);
+
+                        // Wrap main text if too long
+                        const maxWidth = dateText ? contentWidth - 45 : contentWidth;
+                        const wrapped = doc.splitTextToSize(mainText, maxWidth);
+
+                        doc.text(wrapped[0], leftMargin, yPos);
+
+                        // Date on right
+                        if (dateText) {
+                            doc.setFont('times', 'normal');
+                            doc.text(dateText, pageWidth - rightMargin, yPos, { align: 'right' });
+                        }
+                        yPos += 5;
+
+                        // Additional wrapped lines
+                        if (wrapped.length > 1) {
+                            doc.setFont('times', 'italic');
+                            for (let i = 1; i < wrapped.length; i++) {
+                                checkPageOverflow(4);
+                                doc.text(wrapped[i], leftMargin, yPos);
+                                yPos += 4;
+                            }
+                        }
+                    }
+                    // Regular paragraph text
                     else {
                         doc.setFont('times', 'normal');
-                        const wrapped = doc.splitTextToSize(mainText, dateText ? contentWidth - 40 : contentWidth);
+                        doc.setFontSize(10);
+                        const wrapped = doc.splitTextToSize(trimmed, contentWidth);
                         wrapped.forEach((wLine: string, wIdx: number) => {
-                            if (wIdx > 0) checkPageOverflow(5);
+                            if (wIdx > 0) checkPageOverflow(4);
                             doc.text(wLine, leftMargin, yPos);
-                            if (wIdx === 0 && dateText) {
-                                doc.setFont('times', 'italic');
-                                const dateWidth = doc.getTextWidth(dateText);
-                                doc.text(dateText, pageWidth - rightMargin - dateWidth, yPos);
-                                doc.setFont('times', 'normal');
-                            }
                             yPos += 4;
                         });
                     }
                 });
 
-                yPos += 3;
+                yPos += 2; // Space after section content
             });
 
             // Save

@@ -116,7 +116,7 @@ export default function InterviewPage() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.1 }}
-                    className="bg-gradient-to-r from-[#65cae1] to-[#4db8d4] rounded-3xl p-8 text-white shadow-2xl mb-8"
+                    className="bg-linear-to-r from-[#65cae1] to-[#4db8d4] rounded-3xl p-8 text-white shadow-2xl mb-8"
                     style={{ boxShadow: '0 20px 40px rgba(101, 202, 225, 0.3)' }}
                 >
                     <div className="flex items-center justify-between">

@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { connectToDatabase } from '@/src/server/db/mongoClient';
 import { ResumeModel } from '@/src/server/db/models';
 import { getUserFromToken } from '@/src/server/services/authService';
-import { generateJSON } from '@/src/server/integrations/geminiClient';
+import { generateJSON, generateText } from '@/src/server/integrations/geminiClient';
 
 interface ParsedCV {
     summary?: string;
@@ -86,8 +86,53 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Use Gemini to parse CV into structured format
-        const systemInstruction = `You are a CV parser. Extract structured information from the CV text.
+        // Use Gemini to format and structure the extracted text
+        let formattedContent = extractedContent;
+        let structuredData: ParsedCV = {};
+
+        try {
+            // First, get Gemini to format the raw text into a clean, well-structured resume
+            const formatPrompt = `Format this resume text into a clean, professional structure with clear sections. Preserve all information but organize it properly:
+
+${extractedContent}`;
+
+            const formatInstruction = `You are a professional resume formatter. Your task is to:
+
+1. Organize the resume with clear section headers:
+   - CONTACT INFORMATION
+   - PROFESSIONAL SUMMARY (if present)
+   - EXPERIENCE / WORK HISTORY
+   - EDUCATION
+   - SKILLS
+   - CERTIFICATIONS (if present)
+   - PROJECTS (if present)
+   - ADDITIONAL SECTIONS (if present)
+
+2. Format each section consistently:
+   - Use clear headers (UPPERCASE)
+   - For experience: Company | Position | Location | Dates on separate lines, then bullet points
+   - For education: Institution | Degree | Location | Graduation Date
+   - Use bullet points (•) for achievements and responsibilities
+   - Preserve all dates, numbers, and metrics
+
+3. Clean up formatting issues:
+   - Remove excessive whitespace
+   - Fix broken lines
+   - Ensure consistent spacing
+   - Maintain professional tone
+
+4. DO NOT:
+   - Add information that isn't in the original
+   - Remove any details
+   - Change the meaning
+
+Return ONLY the formatted resume text, no explanations.`;
+
+            formattedContent = await generateText(formatPrompt, formatInstruction);
+            console.log('[CV Upload] Formatted with Gemini, length:', formattedContent.length);
+
+            // Then parse into structured format
+            const parseInstruction = `You are a CV parser. Extract structured information from the CV text.
 Return a JSON object with these fields:
 - summary: string (professional summary)
 - experience: array of {title, company, startDate, endDate, bullets: string[]}
@@ -95,15 +140,14 @@ Return a JSON object with these fields:
 - skills: array of skill names (string[])
 - certifications: array of {name, issuer, year}`;
 
-        let structuredData: ParsedCV = {};
-        try {
             structuredData = await generateJSON<ParsedCV>(
-                `Parse this CV and extract structured information:\n\n${extractedContent}`,
-                systemInstruction
+                `Parse this CV and extract structured information:\n\n${formattedContent}`,
+                parseInstruction
             );
         } catch (error) {
-            console.error('Failed to parse CV with Gemini:', error);
-            // Continue with empty structured data
+            console.error('Failed to format/parse CV with Gemini:', error);
+            // Continue with original extracted content
+            formattedContent = extractedContent;
         }
 
         // If isPrimary, unset other primary resumes
@@ -117,12 +161,12 @@ Return a JSON object with these fields:
         const resume = await ResumeModel.create({
             userId: user.userId,
             title,
-            rawText: extractedContent,
+            rawText: formattedContent,
             structuredData,
             isPrimary: isPrimary || false,
             versions: [{
                 versionNumber: 1,
-                content: extractedContent,
+                content: formattedContent,
                 changes: 'Initial upload',
                 createdAt: new Date(),
             }],

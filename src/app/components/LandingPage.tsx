@@ -165,10 +165,10 @@ export default function LandingPage() {
                                 className="text-6xl lg:text-7xl font-black mb-6 leading-tight"
                             >
                                 <span className="bg-clip-text text-transparent" style={{ backgroundImage: 'linear-gradient(135deg, #4db8d4 0%, #3ba5c0 50%, #2a93a8 100%)' }}>
-                                    Land Your Dream Job
+                                    Land Your Dream Job <span className="text-gray-800">With AI</span>
+
                                 </span>
                                 <br />
-                                <span className="text-gray-800">With AI</span>
                             </motion.h1>
 
                             <motion.p
@@ -424,7 +424,7 @@ export default function LandingPage() {
                         className="text-center mb-16"
                     >
                         <h2 className="text-5xl lg:text-6xl font-black mb-4 text-gray-800">
-                            Why Choose <span className="bg-clip-text text-transparent" style={{ backgroundImage: 'linear-gradient(to right, #4db8d4, #3ba5c0)' }}>CareerPilot</span>
+                            Why Choose <span className="bg-clip-text text-transparent" style={{ backgroundImage: 'linear-gradient(to right, #4db8d4, #3ba5c0)' }}>CareerPilot ?</span>
                         </h2>
                         <p className="text-xl text-gray-600">Transform your job search with AI-powered advantages</p>
                     </motion.div>
