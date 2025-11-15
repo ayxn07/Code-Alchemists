@@ -841,7 +841,7 @@ export default function CVPage() {
                             icon: '✍️',
                             title: 'AI Rewrite Section',
                             desc: 'Improve any section',
-                            color: 'from-purple-500 to-pink-500',
+                            color: 'from-[#65cae1] to-[#4db8d4]',
                             onClick: () => {
                                 if (resumes.length > 0) {
                                     setSelectedResume(resumes[0]);
@@ -855,7 +855,7 @@ export default function CVPage() {
                             icon: '📊',
                             title: 'Compare Versions',
                             desc: 'See what changed',
-                            color: 'from-green-500 to-emerald-500',
+                            color: 'from-[#65cae1] to-[#4db8d4]',
                             onClick: () => {
                                 if (resumes.length > 0) {
                                     setSelectedResume(resumes[0]);
@@ -909,7 +909,7 @@ export default function CVPage() {
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{ type: 'spring', stiffness: 100 }}
-                            className="text-center py-20 bg-gradient-to-br from-white to-gray-50 rounded-3xl border-2 border-dashed shadow-inner"
+                            className="text-center py-20 bg-white rounded-3xl border-2 border-dashed shadow-inner"
                             style={{ borderColor: 'rgba(101, 202, 225, 0.4)' }}
                         >
                             <div className="text-7xl mb-6">📄</div>
@@ -1008,7 +1008,7 @@ export default function CVPage() {
                                         >
                                             Delete
                                         </motion.button>
-                                        <div className="relative z-[10001]">
+                                        <div className="relative" style={{ zIndex: 1000 }}>
                                             <motion.button
                                                 whileHover={{ scale: 1.1, backgroundColor: '#f3f4f6' }}
                                                 whileTap={{ scale: 0.95 }}
@@ -1028,7 +1028,8 @@ export default function CVPage() {
                                                         animate={{ opacity: 1 }}
                                                         exit={{ opacity: 0 }}
                                                         transition={{ duration: 0.15 }}
-                                                        className="fixed inset-0 z-[9999]"
+                                                        className="fixed inset-0"
+                                                        style={{ zIndex: 999 }}
                                                         onClick={() => setOpenMenuId(null)}
                                                         aria-hidden="true"
                                                     />
@@ -1042,8 +1043,8 @@ export default function CVPage() {
                                                         animate={{ opacity: 1, y: 0, scale: 1 }}
                                                         exit={{ opacity: 0, y: -10, scale: 0.95 }}
                                                         transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                                                        className="absolute right-0 mt-3 w-52 bg-white border-2 border-gray-200 rounded-2xl shadow-2xl z-[10000] overflow-hidden"
-                                                        style={{ minWidth: 200, boxShadow: '0 20px 50px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(101, 202, 225, 0.1)' }}
+                                                        className="absolute right-0 mt-3 w-52 bg-white border-2 border-gray-200 rounded-2xl shadow-2xl overflow-hidden"
+                                                        style={{ minWidth: 200, boxShadow: '0 20px 50px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(101, 202, 225, 0.1)', zIndex: 1001 }}
                                                         tabIndex={-1}
                                                     >
                                                         <motion.button
