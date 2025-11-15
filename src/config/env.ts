@@ -42,6 +42,9 @@ export const env = {
         pass: process.env.SMTP_PASS,
         from: process.env.EMAIL_FROM,
     },
+    useresume: {
+        apiKey: process.env.USERESUME_API_KEY,
+    },
 };
 
 export function ensureRequiredEnv() {

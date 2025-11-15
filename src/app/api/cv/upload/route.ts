@@ -3,7 +3,29 @@ import { z } from 'zod';
 import { connectToDatabase } from '@/src/server/db/mongoClient';
 import { ResumeModel } from '@/src/server/db/models';
 import { getUserFromToken } from '@/src/server/services/authService';
-import { generateText } from '@/src/server/integrations/geminiClient';
+import { generateJSON } from '@/src/server/integrations/geminiClient';
+
+interface ParsedCV {
+    summary?: string;
+    experience?: Array<{
+        title: string;
+        company: string;
+        startDate?: string;
+        endDate?: string;
+        bullets: string[];
+    }>;
+    education?: Array<{
+        degree: string;
+        institution: string;
+        year?: string;
+    }>;
+    skills?: string[];
+    certifications?: Array<{
+        name: string;
+        issuer: string;
+        year?: string;
+    }>;
+}
 
 const uploadSchema = z.object({
     title: z.string(),
@@ -32,13 +54,12 @@ Return a JSON object with these fields:
 - skills: array of skill names (string[])
 - certifications: array of {name, issuer, year}`;
 
-        let structuredData: any = {};
+        let structuredData: ParsedCV = {};
         try {
-            const parsed = await generateText(
+            structuredData = await generateJSON<ParsedCV>(
                 `Parse this CV and extract structured information:\n\n${content}`,
                 systemInstruction
             );
-            structuredData = JSON.parse(parsed);
         } catch (error) {
             console.error('Failed to parse CV with Gemini:', error);
             // Continue with empty structured data

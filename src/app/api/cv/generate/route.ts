@@ -7,7 +7,7 @@ import { getUserProfile } from '@/src/server/services/profileService';
 import { generateText } from '@/src/server/integrations/geminiClient';
 
 const generateSchema = z.object({
-    template: z.enum(['harvard', 'modern', 'professional', 'minimal']),
+    template: z.enum(['harvard', 'modern', 'minimalist', 'creative']),
     targetRole: z.string().optional(),
 });
 

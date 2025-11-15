@@ -19,11 +19,16 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({
             success: true,
             resumes: resumes.map((resume: any) => ({
-                id: resume._id.toString(),
+                _id: resume._id.toString(),
                 title: resume.title,
                 isPrimary: resume.isPrimary,
                 createdAt: resume.createdAt,
                 updatedAt: resume.updatedAt,
+                tags: resume.tags || [],
+                rawText: resume.rawText,
+                atsScore: resume.atsScore,
+                atsAnalysis: resume.atsAnalysis,
+                versions: resume.versions || [],
                 hasStructuredData: !!resume.structuredData,
             })),
             primaryResume: resumes.find((r: any) => r.isPrimary) || null,

@@ -1,63 +1,100 @@
 'use client';
 
-import { motion } from 'framer-motion';
-import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/src/app/components/DashboardLayout';
 
 export default function InterviewPage() {
+    const router = useRouter();
     const [showStartModal, setShowStartModal] = useState(false);
     const [selectedMode, setSelectedMode] = useState<'hr' | 'technical' | 'behavioral'>('hr');
+    const [targetRole, setTargetRole] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [sessions, setSessions] = useState<any[]>([]);
+    const [loadingSessions, setLoadingSessions] = useState(true);
 
-    const pastSessions = [
-        {
-            id: 1,
-            role: 'Software Engineer',
-            mode: 'technical',
-            date: '2024-01-15',
-            score: 85,
-            duration: '45 min',
-            questionsCount: 8,
-        },
-        {
-            id: 2,
-            role: 'Senior Developer',
-            mode: 'behavioral',
-            date: '2024-01-10',
-            score: 92,
-            duration: '30 min',
-            questionsCount: 5,
-        },
-        {
-            id: 3,
-            role: 'Tech Lead',
-            mode: 'hr',
-            date: '2024-01-05',
-            score: 78,
-            duration: '25 min',
-            questionsCount: 6,
-        },
-    ];
+    useEffect(() => {
+        fetchSessions();
+    }, []);
+
+    const fetchSessions = async () => {
+        try {
+            const token = localStorage.getItem('auth_token');
+            const response = await fetch('/api/interview/sessions', {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setSessions(data.sessions || []);
+            }
+        } catch (error) {
+            console.error('Failed to fetch sessions:', error);
+        } finally {
+            setLoadingSessions(false);
+        }
+    };
+
+    const startInterview = async () => {
+        if (!targetRole.trim()) {
+            alert('Please enter a target role');
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const token = localStorage.getItem('auth_token');
+            const response = await fetch('/api/interview/start', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    mode: selectedMode,
+                    targetRole: targetRole.trim(),
+                }),
+            });
+
+            const data = await response.json();
+            if (response.ok && data.success) {
+                // Store session data for the session page
+                sessionStorage.setItem(`interview-${data.session.id}`, JSON.stringify({
+                    currentQuestion: data.session.currentQuestion,
+                    questionNumber: data.session.questionNumber,
+                    totalQuestions: data.session.totalQuestions,
+                }));
+
+                router.push(`/dashboard/interview/session?id=${data.session.id}`);
+            } else {
+                alert(data.error || 'Failed to start interview');
+            }
+        } catch (error) {
+            console.error('Failed to start interview:', error);
+            alert('Failed to start interview. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const pastSessions = sessions.length > 0 ? sessions.slice(0, 10) : [];
 
     const modeDetails = {
         hr: {
-            icon: '👔',
             title: 'HR Round',
             desc: 'General questions about background, motivation, and cultural fit',
-            color: 'blue',
             questions: ['Tell me about yourself', 'Why this company?', 'Salary expectations'],
         },
         technical: {
-            icon: '💻',
             title: 'Technical Round',
             desc: 'Coding problems, system design, and technical deep dives',
-            color: 'green',
             questions: ['Data structures', 'Algorithms', 'System design', 'Code reviews'],
         },
         behavioral: {
-            icon: '🤝',
             title: 'Behavioral Round',
             desc: 'STAR method questions about past experiences and soft skills',
-            color: 'purple',
             questions: ['Conflict resolution', 'Leadership', 'Teamwork', 'Problem solving'],
         },
     };
@@ -79,7 +116,8 @@ export default function InterviewPage() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.1 }}
-                    className="bg-linear-to-r from-blue-600 to-purple-600 rounded-3xl p-8 text-white shadow-2xl mb-8"
+                    className="bg-gradient-to-r from-[#65cae1] to-[#4db8d4] rounded-3xl p-8 text-white shadow-2xl mb-8"
+                    style={{ boxShadow: '0 20px 40px rgba(101, 202, 225, 0.3)' }}
                 >
                     <div className="flex items-center justify-between">
                         <div>
@@ -88,18 +126,18 @@ export default function InterviewPage() {
                                 Choose your interview type and start practicing with AI feedback
                             </p>
                             <div className="flex gap-3">
-                                <span className="px-4 py-2 bg-white/20 rounded-xl">🎤 Voice Enabled</span>
-                                <span className="px-4 py-2 bg-white/20 rounded-xl">📹 Video Ready</span>
-                                <span className="px-4 py-2 bg-white/20 rounded-xl">✨ AI Powered</span>
+                                <span className="px-4 py-2 bg-white/20 rounded-xl font-semibold">Voice Enabled</span>
+                                <span className="px-4 py-2 bg-white/20 rounded-xl font-semibold">Video Ready</span>
+                                <span className="px-4 py-2 bg-white/20 rounded-xl font-semibold">AI Powered</span>
                             </div>
                         </div>
                         <motion.button
                             whileHover={{ scale: 1.05, boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)' }}
                             whileTap={{ scale: 0.95 }}
                             onClick={() => setShowStartModal(true)}
-                            className="px-8 py-4 bg-white text-blue-600 rounded-2xl font-bold text-lg hover:bg-blue-50 shadow-xl"
+                            className="px-8 py-4 bg-white text-[#4db8d4] rounded-2xl font-bold text-lg hover:bg-blue-50 shadow-xl"
                         >
-                            🚀 Start Interview
+                            Start Interview
                         </motion.button>
                     </div>
                 </motion.div>
@@ -115,8 +153,7 @@ export default function InterviewPage() {
                             whileHover={{ y: -10, boxShadow: '0 20px 40px rgba(59, 130, 246, 0.2)' }}
                             className="bg-white rounded-2xl p-6 shadow-lg border border-blue-100 cursor-pointer"
                         >
-                            <div className="text-5xl mb-4">{details.icon}</div>
-                            <h3 className="text-xl font-bold text-gray-800 mb-2">{details.title}</h3>
+                            <h3 className="text-2xl font-bold text-gray-800 mb-2">{details.title}</h3>
                             <p className="text-gray-600 mb-4">{details.desc}</p>
                             <div className="space-y-2">
                                 {details.questions.map((q, j) => (
@@ -166,13 +203,13 @@ export default function InterviewPage() {
                                                             : 'bg-blue-100 text-blue-700'
                                                         }`}
                                                 >
-                                                    {modeDetails[session.mode as keyof typeof modeDetails].icon} {session.mode}
+                                                    {session.mode}
                                                 </span>
                                             </div>
                                             <div className="flex gap-4 text-sm text-gray-600">
-                                                <span>📅 {session.date}</span>
-                                                <span>⏱️ {session.duration}</span>
-                                                <span>❓ {session.questionsCount} questions</span>
+                                                <span className="font-semibold">{session.date}</span>
+                                                <span className="font-semibold">{session.duration}</span>
+                                                <span className="font-semibold">{session.questionsCount} questions</span>
                                             </div>
                                         </div>
                                     </div>
@@ -180,16 +217,18 @@ export default function InterviewPage() {
                                         <motion.button
                                             whileHover={{ scale: 1.1 }}
                                             whileTap={{ scale: 0.9 }}
-                                            className="px-4 py-2 bg-blue-50 text-blue-600 rounded-xl font-semibold hover:bg-blue-100"
+                                            className="px-4 py-2 bg-[#65cae1] text-white rounded-xl font-semibold hover:bg-[#4db8d4]"
+                                            style={{ boxShadow: '0 4px 12px rgba(101, 202, 225, 0.3)' }}
                                         >
-                                            📊 Review
+                                            Review
                                         </motion.button>
                                         <motion.button
                                             whileHover={{ scale: 1.1 }}
                                             whileTap={{ scale: 0.9 }}
-                                            className="px-4 py-2 bg-green-50 text-green-600 rounded-xl font-semibold hover:bg-green-100"
+                                            className="px-4 py-2 bg-[#65cae1] text-white rounded-xl font-semibold hover:bg-[#4db8d4]"
+                                            style={{ boxShadow: '0 4px 12px rgba(101, 202, 225, 0.3)' }}
                                         >
-                                            🔄 Retry
+                                            Retry
                                         </motion.button>
                                     </div>
                                 </div>
@@ -231,8 +270,7 @@ export default function InterviewPage() {
                                                 : 'border-gray-200 hover:border-blue-300'
                                                 }`}
                                         >
-                                            <div className="text-3xl mb-2">{details.icon}</div>
-                                            <div className="font-semibold text-sm">{details.title}</div>
+                                            <div className="font-bold text-base">{details.title}</div>
                                         </motion.button>
                                     ))}
                                 </div>
@@ -245,6 +283,8 @@ export default function InterviewPage() {
                                 </label>
                                 <input
                                     type="text"
+                                    value={targetRole}
+                                    onChange={(e) => setTargetRole(e.target.value)}
                                     placeholder="e.g., Senior Software Engineer"
                                     className="w-full px-4 py-3 rounded-xl border border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 />
@@ -254,15 +294,15 @@ export default function InterviewPage() {
                             <div className="mb-6 space-y-3">
                                 <label className="flex items-center gap-3 cursor-pointer">
                                     <input type="checkbox" className="w-5 h-5" />
-                                    <span className="font-medium">🎤 Enable Voice Input</span>
+                                    <span className="font-medium">Enable Voice Input</span>
                                 </label>
                                 <label className="flex items-center gap-3 cursor-pointer">
                                     <input type="checkbox" className="w-5 h-5" />
-                                    <span className="font-medium">🔊 Enable AI Voice Responses</span>
+                                    <span className="font-medium">Enable AI Voice Responses</span>
                                 </label>
                                 <label className="flex items-center gap-3 cursor-pointer">
                                     <input type="checkbox" className="w-5 h-5" />
-                                    <span className="font-medium">📹 Enable Video Recording</span>
+                                    <span className="font-medium">Enable Video Recording</span>
                                 </label>
                             </div>
 
@@ -273,8 +313,13 @@ export default function InterviewPage() {
                                 >
                                     Cancel
                                 </button>
-                                <button className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 shadow-lg">
-                                    Start Interview
+                                <button
+                                    onClick={startInterview}
+                                    disabled={loading || !targetRole || !selectedMode}
+                                    className="flex-1 py-3 bg-[#65cae1] text-white rounded-xl font-semibold hover:bg-[#4db8d4] shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                                    style={{ boxShadow: '0 8px 20px rgba(101, 202, 225, 0.3)' }}
+                                >
+                                    {loading ? 'Starting...' : 'Start Interview'}
                                 </button>
                             </div>
                         </motion.div>

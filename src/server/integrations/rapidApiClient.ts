@@ -29,64 +29,58 @@ export interface NormalizedJob {
 }
 
 /**
- * Search jobs using RapidAPI JSearch endpoint
- * https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch
+ * Search jobs using RapidAPI LinkedIn Job Search API
+ * https://rapidapi.com/rockapis-rockapis-default/api/linkedin-job-search-api
  */
 export async function searchJobsRapidAPI(
     params: RapidAPIJobSearchParams
-): Promise<NormalizedJob[]> {
+): Promise<any[]> {
     const apiKey = env.jobApi.rapidApiKey;
 
     if (!apiKey) {
         throw new Error('RAPIDAPI_KEY is not configured');
     }
 
-    const queryParams = new URLSearchParams();
-    if (params.query) queryParams.append('query', params.query);
-    if (params.location) queryParams.append('location', params.location);
-    if (params.remote) queryParams.append('remote_jobs_only', 'true');
-    if (params.datePosted) queryParams.append('date_posted', params.datePosted);
-    if (params.page) queryParams.append('page', params.page.toString());
+    // Build title filter based on query
+    const titleFilter = params.query ? `"${params.query}"` : '"Data Engineer"';
 
-    const url = `https://jsearch.p.rapidapi.com/search?${queryParams.toString()}`;
+    // Build location filter
+    const locationFilter = params.location
+        ? `"${params.location}"`
+        : '"United States" OR "United Kingdom"';
+
+    // Build URL with query parameters
+    const limit = 20;
+    const offset = params.page ? (params.page - 1) * limit : 0;
+    const url = `https://linkedin-job-search-api.p.rapidapi.com/active-jb-24h?limit=${limit}&offset=${offset}&title_filter=${encodeURIComponent(titleFilter)}&location_filter=${encodeURIComponent(locationFilter)}&description_type=text`;
+
+    console.log('[RapidAPI] Fetching jobs from:', url);
+    console.log('[RapidAPI] API Key present:', !!apiKey);
 
     try {
         const response = await fetch(url, {
             method: 'GET',
             headers: {
-                'X-RapidAPI-Key': apiKey,
-                'X-RapidAPI-Host': 'jsearch.p.rapidapi.com',
+                'x-rapidapi-key': apiKey,
+                'x-rapidapi-host': 'linkedin-job-search-api.p.rapidapi.com',
             },
         });
 
+        console.log('[RapidAPI] Response status:', response.status);
+
         if (!response.ok) {
-            throw new Error(`RapidAPI error: ${response.status}`);
+            const errorText = await response.text();
+            console.error('[RapidAPI] Error response:', errorText);
+            throw new Error(`RapidAPI error: ${response.status} - ${errorText}`);
         }
 
         const data = await response.json();
+        console.log('[RapidAPI] Received data type:', typeof data, 'Is array:', Array.isArray(data));
+        console.log('[RapidAPI] Jobs count:', Array.isArray(data) ? data.length : 'N/A');
 
-        // Normalize job data
-        const jobs: NormalizedJob[] = (data.data || []).map((job: any) => ({
-            id: job.job_id || `job-${Date.now()}-${Math.random()}`,
-            title: job.job_title || 'Untitled',
-            company: job.employer_name || 'Unknown Company',
-            location: job.job_city && job.job_country
-                ? `${job.job_city}, ${job.job_country}`
-                : job.job_country || 'Not specified',
-            description: job.job_description || '',
-            salary: job.job_min_salary && job.job_max_salary
-                ? {
-                    min: job.job_min_salary,
-                    max: job.job_max_salary,
-                    currency: job.job_salary_currency || 'USD',
-                }
-                : undefined,
-            type: job.job_employment_type || 'FULLTIME',
-            remote: job.job_is_remote || false,
-            postedDate: job.job_posted_at_datetime_utc || new Date().toISOString(),
-            applyUrl: job.job_apply_link || job.job_google_link || '#',
-            source: 'RapidAPI-JSearch',
-        }));
+        // The API returns jobs directly in the format we need
+        // Ensure each job has the expected structure
+        const jobs = Array.isArray(data) ? data : [];
 
         return jobs;
     } catch (error) {

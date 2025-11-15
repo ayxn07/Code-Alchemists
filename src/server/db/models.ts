@@ -9,6 +9,7 @@ import type {
     LearningPlan,
     InterviewSession,
     ActivityLog,
+    IntegrationToken,
 } from "@/src/types/models";
 
 const userSchema = new Schema<User>(
@@ -27,11 +28,113 @@ const userSchema = new Schema<User>(
 const userProfileSchema = new Schema<UserProfile>(
     {
         userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
+
+        // Basic Info
         headline: String,
         about: String,
+        phone: String,
+        location: String,
         skills: { type: [String], default: [] },
+        experienceYears: Number,
+        experienceLevel: { type: String, enum: ['entry', 'mid', 'senior', 'lead', 'executive'] },
+        currentRole: String,
         targetRoles: { type: [String], default: [] },
         locations: { type: [String], default: [] },
+
+        // Links
+        linkedinUrl: String,
+        githubUrl: String,
+        portfolioUrl: String,
+        personalWebsite: String,
+
+        // Detailed Work Experience
+        experience: [{
+            title: { type: String, required: true },
+            company: { type: String, required: true },
+            location: String,
+            startDate: { type: String, required: true },
+            endDate: String,
+            current: { type: Boolean, default: false },
+            description: { type: [String], default: [] },
+            technologies: { type: [String], default: [] },
+            achievements: { type: [String], default: [] },
+        }],
+
+        // Education
+        education: [{
+            degree: { type: String, required: true },
+            institution: { type: String, required: true },
+            location: String,
+            graduationDate: { type: String, required: true },
+            gpa: String,
+            honors: { type: [String], default: [] },
+            relevantCoursework: { type: [String], default: [] },
+            activities: { type: [String], default: [] },
+        }],
+
+        // Projects
+        projects: [{
+            name: { type: String, required: true },
+            description: { type: String, required: true },
+            role: String,
+            startDate: String,
+            endDate: String,
+            technologies: { type: [String], default: [] },
+            link: String,
+            githubUrl: String,
+            achievements: { type: [String], default: [] },
+        }],
+
+        // Certifications & Licenses
+        certifications: [{
+            name: { type: String, required: true },
+            issuer: { type: String, required: true },
+            date: { type: String, required: true },
+            expiryDate: String,
+            credentialId: String,
+            credentialUrl: String,
+        }],
+
+        // Awards & Recognition
+        awards: [{
+            title: { type: String, required: true },
+            issuer: { type: String, required: true },
+            date: { type: String, required: true },
+            description: String,
+        }],
+
+        // Publications
+        publications: [{
+            title: { type: String, required: true },
+            publisher: { type: String, required: true },
+            date: { type: String, required: true },
+            url: String,
+            coAuthors: { type: [String], default: [] },
+        }],
+
+        // Languages
+        languages: [{
+            name: { type: String, required: true },
+            proficiency: {
+                type: String,
+                enum: ['native', 'fluent', 'professional', 'intermediate', 'basic'],
+                required: true
+            },
+        }],
+
+        // Volunteer Work
+        volunteer: [{
+            role: { type: String, required: true },
+            organization: { type: String, required: true },
+            startDate: String,
+            endDate: String,
+            description: String,
+        }],
+
+        // Professional Summary/Objective
+        professionalSummary: String,
+        careerObjective: String,
+
         salaryExpectation: {
             currency: String,
             min: Number,
@@ -54,6 +157,22 @@ const resumeSchema = new Schema<Resume>(
         rawText: { type: String, required: true },
         structuredData: { type: Schema.Types.Mixed },
         isPrimary: { type: Boolean, default: false },
+        templateType: String,
+        atsScore: { type: Number, min: 0, max: 100 },
+        atsAnalysis: {
+            score: { type: Number, min: 0, max: 100 },
+            strengths: { type: [String], default: [] },
+            weaknesses: { type: [String], default: [] },
+            suggestions: { type: [String], default: [] },
+            keywordMatches: { type: [String], default: [] },
+        },
+        versions: [{
+            versionNumber: { type: Number, required: true },
+            content: { type: String, required: true },
+            atsScore: { type: Number, min: 0, max: 100 },
+            changes: String,
+            createdAt: { type: Date, default: Date.now },
+        }],
         tags: { type: [String], default: [] },
     },
     { timestamps: true }
@@ -66,6 +185,8 @@ const jobSchema = new Schema<Job>(
         title: { type: String, required: true },
         company: { type: String, required: true },
         location: String,
+        remote: { type: Boolean, default: false },
+        postedAt: Date,
         salaryRange: {
             currency: String,
             min: Number,
@@ -110,6 +231,11 @@ const skillGapAnalysisSchema = new Schema<SkillGapAnalysis>(
         matchPercent: { type: Number, required: true },
         missingSkills: { type: [String], default: [] },
         outdatedSkills: { type: [String], default: [] },
+        highDemandSkills: { type: [String], default: [] },
+        generatedFrom: {
+            resumeId: { type: Schema.Types.ObjectId, ref: "Resume" },
+            profileSnapshot: Schema.Types.Mixed,
+        },
     },
     { timestamps: { createdAt: true, updatedAt: false } }
 );
@@ -122,6 +248,11 @@ const learningPlanSchema = new Schema<LearningPlan>(
                 skill: { type: String, required: true },
                 description: String,
                 resourceLink: String,
+                resourceTitle: String,
+                difficulty: {
+                    type: String,
+                    enum: ["beginner", "intermediate", "advanced"],
+                },
                 estimatedHours: Number,
                 status: {
                     type: String,
@@ -207,3 +338,20 @@ export const InterviewSessionModel =
     model<InterviewSession>("InterviewSession", interviewSessionSchema);
 export const ActivityLogModel =
     models.ActivityLog || model<ActivityLog>("ActivityLog", activityLogSchema);
+
+const integrationTokenSchema = new Schema<IntegrationToken>(
+    {
+        userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
+        provider: { type: String, required: true, index: true },
+        accessToken: { type: String, required: true },
+        refreshToken: String,
+        expiresAt: Date,
+    },
+    { timestamps: true }
+);
+
+integrationTokenSchema.index({ userId: 1, provider: 1 }, { unique: true });
+
+export const IntegrationTokenModel =
+    models.IntegrationToken ||
+    model<IntegrationToken>("IntegrationToken", integrationTokenSchema);

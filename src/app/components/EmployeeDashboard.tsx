@@ -10,9 +10,9 @@ export default function EmployeeDashboard() {
     );
 
     const stats = [
-        { label: 'Applications', value: '24', icon: '📝', color: 'from-blue-500 to-blue-600' },
-        { label: 'Interviews', value: '5', icon: '🎤', color: 'from-green-500 to-green-600' },
-        { label: 'Offers', value: '2', icon: '🎉', color: 'from-purple-500 to-purple-600' },
+        { label: 'Applications', value: '24', icon: '📝', color: 'from-[#65cae1] to-[#4db8d4]' },
+        { label: 'Interviews', value: '8', icon: '🎤', color: 'from-[#65cae1] to-[#4db8d4]' },
+        { label: 'Offers', value: '2', icon: '🎉', color: 'from-[#65cae1] to-[#4db8d4]' },
         { label: 'Profile Views', value: '142', icon: '👀', color: 'from-orange-500 to-orange-600' },
     ];
 
@@ -65,19 +65,21 @@ export default function EmployeeDashboard() {
     ];
 
     return (
-        <div className="min-h-screen bg-linear-to-br from-blue-50 via-white to-blue-50">
+        <div className="min-h-screen bg-linear-to-br from-cyan-50 via-white to-blue-50">
             {/* Top Navigation */}
             <motion.nav
                 initial={{ y: -100 }}
                 animate={{ y: 0 }}
                 transition={{ duration: 0.5 }}
-                className="border-b border-blue-100 sticky top-0 z-50 backdrop-blur-md bg-white/90"
+                className="border-b sticky top-0 z-50 backdrop-blur-md bg-white/90"
+                style={{ borderColor: 'rgba(101, 202, 225, 0.2)' }}
             >
                 <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-8">
                         <motion.h1
                             whileHover={{ scale: 1.05 }}
-                            className="text-2xl font-bold bg-linear-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent cursor-pointer"
+                            className="text-2xl font-bold bg-clip-text text-transparent cursor-pointer"
+                            style={{ backgroundImage: 'linear-gradient(to right, #65cae1, #4db8d4)' }}
                         >
                             RapidAI
                         </motion.h1>
@@ -102,14 +104,16 @@ export default function EmployeeDashboard() {
                         <motion.button
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
-                            className="relative p-2 text-gray-600 hover:text-blue-600 transition"
+                            className="relative p-2 text-gray-600 transition"
+                            style={{ ':hover': { color: '#65cae1' } } as any}
                         >
                             <span className="text-2xl">🔔</span>
                             <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
                         </motion.button>
                         <motion.div
                             whileHover={{ scale: 1.05 }}
-                            className="w-10 h-10 rounded-full bg-linear-to-r from-blue-600 to-blue-400 flex items-center justify-center text-white font-bold cursor-pointer"
+                            className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold cursor-pointer"
+                            style={{ backgroundImage: 'linear-gradient(to right, #65cae1, #4db8d4)' }}
                         >
                             JD
                         </motion.div>
@@ -140,7 +144,8 @@ export default function EmployeeDashboard() {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: i * 0.1, duration: 0.5 }}
                             whileHover={{ y: -5, boxShadow: '0 20px 40px rgba(59, 130, 246, 0.2)' }}
-                            className="bg-white rounded-2xl p-6 shadow-lg border border-blue-100 cursor-pointer"
+                            className="bg-white rounded-2xl p-6 shadow-lg border cursor-pointer"
+                            style={{ borderColor: 'rgba(101, 202, 225, 0.2)', boxShadow: '0 4px 12px rgba(101, 202, 225, 0.1)' }}
                         >
                             <div className="flex items-center justify-between mb-4">
                                 <span className="text-4xl">{stat.icon}</span>
@@ -178,10 +183,12 @@ export default function EmployeeDashboard() {
                                     animate={{ opacity: 1, x: 0 }}
                                     transition={{ delay: i * 0.1 }}
                                     whileHover={{ x: 5 }}
-                                    className="flex items-center justify-between p-4 rounded-xl hover:bg-blue-50 transition cursor-pointer border border-blue-100"
+                                    className="flex items-center justify-between p-4 rounded-xl transition cursor-pointer border"
+                                    style={{ borderColor: 'rgba(101, 202, 225, 0.2)' }}
                                 >
                                     <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 rounded-lg bg-linear-to-r from-blue-500 to-blue-600 flex items-center justify-center text-2xl">
+                                        <div className="w-12 h-12 rounded-lg flex items-center justify-center text-2xl"
+                                            style={{ backgroundImage: 'linear-gradient(to right, #65cae1, #4db8d4)' }}>
                                             {app.logo}
                                         </div>
                                         <div>

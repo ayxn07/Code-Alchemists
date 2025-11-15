@@ -19,6 +19,7 @@ export interface LoginInput {
 
 export interface AuthTokens {
     token: string;
+    userId: string;
 }
 
 export interface DecodedToken {
@@ -49,7 +50,7 @@ export async function registerUser(input: RegisterInput): Promise<AuthTokens> {
         { expiresIn: "7d" }
     );
 
-    return { token };
+    return { token, userId: user._id.toString() };
 }
 
 export async function loginUser(input: LoginInput): Promise<AuthTokens> {
@@ -71,7 +72,7 @@ export async function loginUser(input: LoginInput): Promise<AuthTokens> {
         { expiresIn: "7d" }
     );
 
-    return { token };
+    return { token, userId: user._id.toString() };
 }
 
 export async function getUserFromToken(tokenOrRequest?: string | any) {
