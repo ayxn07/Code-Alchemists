@@ -3,11 +3,8 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect } from 'react';
 import DashboardLayout from '@/src/app/components/DashboardLayout';
-import dynamic from 'next/dynamic';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-
-const ReactDiffViewer = dynamic(() => import('react-diff-viewer-continued'), { ssr: false });
 
 interface Resume {
     _id: string;
@@ -1666,17 +1663,15 @@ export default function CVPage() {
                                             </div>
                                         </div>
 
-                                        <div className="bg-gray-50 rounded-2xl p-4 max-h-[500px] overflow-auto">
-                                            <ReactDiffViewer
-                                                oldValue={compareResult.version1.content}
-                                                newValue={compareResult.version2.content}
-                                                splitView={true}
-                                                leftTitle={compareResult.version1.label}
-                                                rightTitle={compareResult.version2.label}
-                                                styles={{
-                                                    diffContainer: { fontSize: '12px' },
-                                                }}
-                                            />
+                                        <div className="grid md:grid-cols-2 gap-4">
+                                            <div className="bg-gray-50 rounded-2xl p-4 max-h-[500px] overflow-auto">
+                                                <h4 className="font-bold text-gray-800 mb-3 sticky top-0 bg-gray-50 pb-2">{compareResult.version1.label}</h4>
+                                                <pre className="text-xs text-gray-700 whitespace-pre-wrap font-mono">{compareResult.version1.content}</pre>
+                                            </div>
+                                            <div className="bg-blue-50 rounded-2xl p-4 max-h-[500px] overflow-auto">
+                                                <h4 className="font-bold text-blue-800 mb-3 sticky top-0 bg-blue-50 pb-2">{compareResult.version2.label}</h4>
+                                                <pre className="text-xs text-blue-900 whitespace-pre-wrap font-mono">{compareResult.version2.content}</pre>
+                                            </div>
                                         </div>
 
                                         <button
