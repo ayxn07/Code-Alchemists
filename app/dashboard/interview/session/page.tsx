@@ -33,6 +33,8 @@ function InterviewSessionPageInner() {
     const [isComplete, setIsComplete] = useState(false);
     const [overallScore, setOverallScore] = useState(0);
     const [overallFeedback, setOverallFeedback] = useState('');
+    const [realtimeTranscript, setRealtimeTranscript] = useState('');
+    const recognitionRef = useRef<any>(null);
 
     useEffect(() => {
         if (!sessionId) {
@@ -89,8 +91,42 @@ function InterviewSessionPageInner() {
         });
     };
 
+    // Function to read question out loud using ElevenLabs TTS
+    const readQuestionAloud = async (questionText: string) => {
+        try {
+            const res = await fetch('/api/interview/tts', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+                },
+                body: JSON.stringify({ text: questionText }),
+            });
+
+            if (!res.ok) {
+                console.error('TTS API error');
+                return;
+            }
+
+            const data = await res.json();
+            if (data.audioBase64) {
+                await playBase64Audio(data.audioBase64, data.mime || 'audio/mpeg');
+            }
+        } catch (error) {
+            console.error('Error reading question aloud:', error);
+        }
+    };
+
+    // Effect to read question when it changes
+    useEffect(() => {
+        if (currentQuestion && currentQuestion !== 'Loading question...' && !loading) {
+            readQuestionAloud(currentQuestion);
+        }
+    }, [currentQuestion, loading]);
+
     const startRecording = async () => {
         setRecordingError(null);
+        setRealtimeTranscript('');
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             streamRef.current = stream;
@@ -125,6 +161,13 @@ function InterviewSessionPageInner() {
                 // Stop tracks
                 streamRef.current?.getTracks().forEach(t => t.stop());
                 streamRef.current = null;
+
+                // Stop speech recognition
+                if (recognitionRef.current) {
+                    recognitionRef.current.stop();
+                    recognitionRef.current = null;
+                }
+
                 try {
                     await sendVoiceAnswer(blob, recorder.mimeType || 'audio/webm');
                 } catch (err) {
@@ -135,6 +178,42 @@ function InterviewSessionPageInner() {
 
             recorder.start();
             setIsRecording(true);
+
+            // Start real-time speech recognition using Web Speech API
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+                const recognition = new SpeechRecognition();
+                recognition.continuous = true;
+                recognition.interimResults = true;
+                recognition.lang = 'en-US';
+
+                recognition.onresult = (event: any) => {
+                    let finalTranscript = '';
+                    let interimTranscript = '';
+
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        const transcript = event.results[i][0].transcript;
+                        if (event.results[i].isFinal) {
+                            finalTranscript += transcript + ' ';
+                        } else {
+                            interimTranscript += transcript;
+                        }
+                    }
+
+                    setRealtimeTranscript(prev => prev + finalTranscript);
+                    setAnswer(prev => {
+                        const newText = prev + finalTranscript;
+                        return newText;
+                    });
+                };
+
+                recognition.onerror = (event: any) => {
+                    console.error('Speech recognition error:', event.error);
+                };
+
+                recognition.start();
+                recognitionRef.current = recognition;
+            }
         } catch (err: any) {
             console.error('getUserMedia error:', err);
             setRecordingError(err?.message || 'Microphone access denied');
@@ -148,6 +227,12 @@ function InterviewSessionPageInner() {
             rec.stop();
         }
         recorderRef.current = null;
+
+        if (recognitionRef.current) {
+            recognitionRef.current.stop();
+            recognitionRef.current = null;
+        }
+
         setIsRecording(false);
     };
 
@@ -163,7 +248,7 @@ function InterviewSessionPageInner() {
         const res = await fetch(`/api/interview/voice?sessionId=${encodeURIComponent(sessionId)}`, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
+                'Authorization': `Bearer ${localStorage.getItem('auth_token') || ''}`,
                 'Content-Type': contentType || 'audio/webm'
             },
             body: audioBlob,
@@ -230,7 +315,7 @@ function InterviewSessionPageInner() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
                 },
                 body: JSON.stringify({
                     sessionId,
@@ -294,12 +379,12 @@ function InterviewSessionPageInner() {
                     animate={{ opacity: 1, scale: 1 }}
                     className="max-w-4xl mx-auto py-12"
                 >
-                    <div className="bg-white rounded-3xl p-12 shadow-2xl text-center">
+                    <div className="bg-[#65cae1]  rounded-3xl p-12 shadow-2xl text-center">
                         <motion.div
                             initial={{ scale: 0 }}
                             animate={{ scale: 1 }}
                             transition={{ delay: 0.2, type: 'spring' }}
-                            className="w-32 h-32 bg-gradient-to-br from-[#65cae1] to-[#4db8d4] rounded-full mx-auto mb-6 flex items-center justify-center"
+                            className="w-32 h-32 rounded-full mx-auto mb-6 flex items-center justify-center"
                             style={{ boxShadow: '0 20px 40px rgba(101, 202, 225, 0.4)' }}
                         >
                             <span className="text-white text-5xl font-bold">{overallScore}</span>
@@ -343,12 +428,12 @@ function InterviewSessionPageInner() {
                             Question {questionNumber} / {totalQuestions}
                         </div>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-3">
+                    <div className="w-full  rounded-full h-3">
                         <motion.div
                             initial={{ width: 0 }}
                             animate={{ width: `${(questionNumber / totalQuestions) * 100}%` }}
                             transition={{ duration: 0.5 }}
-                            className="bg-gradient-to-r from-[#65cae1] to-[#4db8d4] h-3 rounded-full"
+                            className="h-3 rounded-full"
                             style={{ boxShadow: '0 2px 8px rgba(101, 202, 225, 0.3)' }}
                         />
                     </div>
@@ -364,7 +449,7 @@ function InterviewSessionPageInner() {
                             className="bg-white rounded-3xl p-8 shadow-2xl mb-8"
                         >
                             <div className="text-center mb-6">
-                                <div className="inline-block px-6 py-3 bg-gradient-to-r from-[#65cae1] to-[#4db8d4] text-white rounded-2xl font-bold text-2xl mb-4"
+                                <div className="inline-block px-6 py-3 text-white rounded-2xl font-bold text-2xl mb-4"
                                     style={{ boxShadow: '0 8px 20px rgba(101, 202, 225, 0.3)' }}>
                                     Score: {evaluation.score}/100
                                 </div>
@@ -413,10 +498,25 @@ function InterviewSessionPageInner() {
                             <motion.div
                                 initial={{ opacity: 0, scale: 0.95 }}
                                 animate={{ opacity: 1, scale: 1 }}
-                                className="bg-gradient-to-br from-[#65cae1] to-[#4db8d4] rounded-3xl p-8 text-white shadow-2xl mb-8"
+                                className="bg-[#65cae1] rounded-3xl p-8 text-white shadow-2xl mb-8"
                                 style={{ boxShadow: '0 20px 40px rgba(101, 202, 225, 0.3)' }}
                             >
-                                <h2 className="text-2xl font-bold mb-4">Question {questionNumber}</h2>
+                                <div className="flex items-start justify-between mb-4">
+                                    <h2 className="text-2xl font-bold">Question {questionNumber}</h2>
+                                    <motion.button
+                                        whileHover={{ scale: 1.05 }}
+                                        whileTap={{ scale: 0.95 }}
+                                        onClick={() => readQuestionAloud(currentQuestion)}
+                                        disabled={isPlayingTTS}
+                                        className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-xl font-semibold flex items-center gap-2 disabled:opacity-50"
+                                        title="Replay question audio"
+                                    >
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                                        </svg>
+                                        {isPlayingTTS ? 'Playing...' : 'Replay'}
+                                    </motion.button>
+                                </div>
                                 <p className="text-xl leading-relaxed">{currentQuestion}</p>
                             </motion.div>
 
@@ -473,6 +573,12 @@ function InterviewSessionPageInner() {
                                     <div className="mt-2 text-sm text-gray-500">
                                         {isRecording ? 'Recording... speak your answer, then press Stop' : 'Click Start Recording to answer by voice'}
                                     </div>
+                                    {isRecording && realtimeTranscript && (
+                                        <div className="mt-3 p-3 bg-white border-2 border-[#65cae1] rounded-xl">
+                                            <div className="text-xs font-bold text-[#4db8d4] mb-1">Live Transcription:</div>
+                                            <div className="text-sm text-gray-700">{realtimeTranscript}</div>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Submit Button */}

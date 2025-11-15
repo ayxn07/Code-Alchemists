@@ -10,6 +10,7 @@
     "seed:jobs": "tsx scripts/seed-jobs.ts"
   },
   "dependencies": {
+    "@elevenlabs/elevenlabs-js": "^2.24.1",
     "@react-pdf/renderer": "^4.3.1",
     "bcryptjs": "^3.0.3",
     "dotenv": "^17.2.3",

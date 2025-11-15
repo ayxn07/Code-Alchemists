@@ -413,119 +413,230 @@ export default function CVPage() {
         try {
             const content = resume.rawText || 'No content available';
 
-            // Extract name
-            const nameMatch = content.match(/^([A-Z][a-zA-Z\s]+)\n/m) || [null, resume.title];
-            const name = nameMatch[1] || resume.title;
+            if (!content || content === 'No content available') {
+                alert('No resume content available to view');
+                return;
+            }
 
-            // Extract contact info
+            // Split content into lines
+            const lines = content.split('\n').map(line => line.trim()).filter(line => line);
+
+            // Extract name (first non-empty line or title)
+            const name = lines[0] || resume.title;
+
+            // Extract contact information
             const emailMatch = content.match(/[\w\.-]+@[\w\.-]+\.\w+/);
-            const phoneMatch = content.match(/\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/);
-            const locationMatch = content.match(/([A-Z][a-zA-Z\s]+,\s*[A-Z]{2})/);
-            const linkedinMatch = content.match(/(linkedin\.com\/in\/[\w-]+)/i);
+            const phoneMatch = content.match(/[\+]?[\d\s\(\)\-\.]+/);
+            const linkedinMatch = content.match(/linkedin\.com\/in\/[\w\-]+/i);
+            const githubMatch = content.match(/github\.com\/[\w\-]+/i);
+            const websiteMatch = content.match(/(?:https?:\/\/)?(?:www\.)?[\w\-]+\.(?:com|dev|pages\.dev|io)/i);
 
-            // Parse sections
-            const sectionPattern = /^([A-Z][A-Z\s&]+)$/gm;
-            const sections: Array<{ title: string, content: string }> = [];
-            const lines = content.split('\n');
-            let currentSection = { title: '', content: '' };
+            // Common section headers
+            const sectionHeaders = [
+                'PROFILE', 'SUMMARY', 'OBJECTIVE', 'ABOUT', 'CONTACT',
+                'EXPERIENCE', 'WORK EXPERIENCE', 'EMPLOYMENT', 'EMPLOYMENT HISTORY',
+                'EDUCATION', 'ACADEMIC', 'QUALIFICATIONS',
+                'SKILLS', 'TECHNICAL SKILLS', 'TOP SKILLS', 'CERTIFICATIONS',
+                'PROJECTS', 'PROJECT', 'PORTFOLIO',
+                'ACHIEVEMENTS', 'AWARDS', 'HONORS',
+                'LANGUAGES', 'INTERESTS', 'HOBBIES'
+            ];
 
-            lines.forEach(line => {
-                const trimmed = line.trim();
-                if (sectionPattern.test(trimmed) && trimmed.length < 40) {
-                    if (currentSection.title) sections.push(currentSection);
-                    currentSection = { title: trimmed, content: '' };
-                } else if (trimmed) {
-                    currentSection.content += line + '\n';
+            // Parse content into sections
+            interface Section {
+                title: string;
+                content: string[];
+            }
+
+            const sections: Section[] = [];
+            let currentSection: Section | null = null;
+            let headerProcessed = false;
+
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i];
+                const upperLine = line.toUpperCase();
+
+                // Check if this is a section header
+                const isHeader = sectionHeaders.some(header => {
+                    return upperLine === header ||
+                        upperLine.startsWith(header + ' ') ||
+                        upperLine.startsWith(header + ':');
+                });
+
+                if (isHeader) {
+                    // Save previous section
+                    if (currentSection && currentSection.content.length > 0) {
+                        sections.push(currentSection);
+                    }
+                    // Start new section
+                    currentSection = {
+                        title: line.replace(/[:\(\)]/g, '').trim(),
+                        content: []
+                    };
+                    headerProcessed = true;
+                } else if (currentSection) {
+                    // Add to current section
+                    currentSection.content.push(line);
+                } else if (!headerProcessed) {
+                    // This is contact info or summary before first section
+                    if (!currentSection) {
+                        currentSection = { title: 'CONTACT & SUMMARY', content: [] };
+                    }
+                    currentSection.content.push(line);
                 }
-            });
-            if (currentSection.title) sections.push(currentSection);
+            }
 
-            // Build HTML
-            const contactParts = [];
-            if (locationMatch) contactParts.push(locationMatch[1]);
-            if (phoneMatch) contactParts.push(`P: ${phoneMatch[0]}`);
+            // Don't forget the last section
+            if (currentSection && currentSection.content.length > 0) {
+                sections.push(currentSection);
+            }
+
+            // Build contact line
+            const contactParts: string[] = [];
             if (emailMatch) contactParts.push(emailMatch[0]);
-            if (linkedinMatch) contactParts.push(linkedinMatch[1]);
+            if (phoneMatch) contactParts.push(phoneMatch[0].trim());
+            if (linkedinMatch) contactParts.push(linkedinMatch[0]);
+            if (githubMatch) contactParts.push(githubMatch[0]);
+            if (websiteMatch && websiteMatch[0] !== emailMatch?.[0]) contactParts.push(websiteMatch[0]);
 
+            // Build sections HTML with better formatting
             const sectionsHTML = sections.map(section => {
-                const contentLines = section.content.split('\n').filter(l => l.trim());
-                const contentHTML = contentLines.map(line => {
-                    const trimmed = line.trim();
-                    if (!trimmed) return '';
-
-                    if (trimmed.startsWith('•') || trimmed.startsWith('-') || trimmed.startsWith('*')) {
-                        return `<li style="margin-left: 20px; margin-bottom: 4px;">${trimmed.substring(1).trim()}</li>`;
+                const contentHTML = section.content.map(line => {
+                    // Detect bullet points
+                    if (line.match(/^[\•\-\*\→]/)) {
+                        return `<li style="margin-left: 25px; margin-bottom: 6px; line-height: 1.5;">${line.replace(/^[\•\-\*\→]\s*/, '')}</li>`;
                     }
 
-                    const isOrgHeader = /^[A-Z\s&]+$/.test(trimmed) && trimmed.length < 60;
-                    const isJobTitle = /^[A-Z][a-zA-Z\s,\-\/]+$/.test(trimmed) && !isOrgHeader && trimmed.length < 80;
-
-                    if (isOrgHeader) {
-                        return `<p style="margin: 8px 0 2px 0; font-weight: bold;">${trimmed}</p>`;
-                    } else if (isJobTitle) {
-                        return `<p style="margin: 2px 0; font-style: italic;">${trimmed}</p>`;
+                    // Detect dates (e.g., "January 2023 - Present")
+                    if (line.match(/\d{4}|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/i)) {
+                        return `<p style="margin: 2px 0; color: #555; font-style: italic; font-size: 9.5pt;">${line}</p>`;
                     }
 
-                    return `<p style="margin: 4px 0;">${line}</p>`;
+                    // Detect role/position titles (usually followed by dates or company)
+                    if (line.match(/^[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*(?:\s+\||\/)?/)) {
+                        return `<p style="margin: 10px 0 2px 0; font-weight: bold; font-size: 10.5pt;">${line}</p>`;
+                    }
+
+                    // Regular content
+                    return `<p style="margin: 4px 0; line-height: 1.5;">${line}</p>`;
                 }).join('');
 
                 return `
-                    <div style="margin-bottom: 20px;">
-                        <h2 style="font-size: 11pt; font-weight: bold; border-bottom: 1px solid #000; padding-bottom: 2px; margin-bottom: 8px;">${section.title}</h2>
+                    <div style="margin-bottom: 22px; page-break-inside: avoid;">
+                        <h2 style="
+                            font-size: 11.5pt; 
+                            font-weight: bold; 
+                            text-transform: uppercase;
+                            color: #000;
+                            border-bottom: 2px solid #65cae1; 
+                            padding-bottom: 4px; 
+                            margin-bottom: 10px;
+                            letter-spacing: 0.5px;
+                        ">${section.title}</h2>
                         ${contentHTML}
                     </div>
                 `;
             }).join('');
 
-            const newWindow = window.open();
+            const newWindow = window.open('', '_blank', 'width=900,height=700');
             if (newWindow) {
                 newWindow.document.write(`
+                    <!DOCTYPE html>
                     <html>
                         <head>
+                            <meta charset="UTF-8">
                             <title>${name} - Resume</title>
                             <style>
+                                * {
+                                    margin: 0;
+                                    padding: 0;
+                                    box-sizing: border-box;
+                                }
                                 body { 
-                                    font-family: 'Times New Roman', Times, serif;
-                                    padding: 40px 60px;
-                                    max-width: 850px;
+                                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                                    padding: 50px 70px;
+                                    max-width: 900px;
                                     margin: 0 auto;
-                                    background: #fff;
-                                    color: #000;
-                                    line-height: 1.4;
+                                    background: #ffffff;
+                                    color: #2d3748;
+                                    line-height: 1.6;
                                     font-size: 10pt;
                                 }
                                 h1 {
                                     text-align: center;
-                                    font-size: 14pt;
-                                    font-weight: bold;
-                                    margin: 0 0 5px 0;
-                                    text-transform: uppercase;
+                                    font-size: 26pt;
+                                    font-weight: 700;
+                                    margin: 0 0 8px 0;
+                                    color: #1a202c;
                                     letter-spacing: 1px;
                                 }
                                 .contact {
                                     text-align: center;
-                                    font-size: 10pt;
-                                    margin-bottom: 20px;
-                                    color: #333;
+                                    font-size: 9.5pt;
+                                    margin-bottom: 30px;
+                                    color: #4a5568;
+                                    padding-bottom: 20px;
+                                    border-bottom: 3px solid #65cae1;
+                                }
+                                .contact a {
+                                    color: #4299e1;
+                                    text-decoration: none;
                                 }
                                 h2 {
-                                    font-size: 11pt;
+                                    font-size: 11.5pt;
                                     font-weight: bold;
-                                    border-bottom: 1px solid #000;
-                                    padding-bottom: 2px;
-                                    margin: 15px 0 8px 0;
+                                    text-transform: uppercase;
+                                    color: #1a202c;
+                                    border-bottom: 2px solid #65cae1;
+                                    padding-bottom: 4px;
+                                    margin: 20px 0 10px 0;
+                                    letter-spacing: 0.5px;
                                 }
-                                p { margin: 4px 0; }
-                                li { margin-left: 20px; margin-bottom: 4px; }
+                                p { 
+                                    margin: 4px 0; 
+                                    line-height: 1.6;
+                                    color: #2d3748;
+                                }
+                                li { 
+                                    margin-left: 25px; 
+                                    margin-bottom: 6px;
+                                    line-height: 1.6;
+                                    color: #2d3748;
+                                }
+                                ul {
+                                    margin: 8px 0;
+                                }
+                                .section {
+                                    margin-bottom: 22px;
+                                    page-break-inside: avoid;
+                                }
                                 @media print {
-                                    body { padding: 20px 40px; }
+                                    body { 
+                                        padding: 30px 50px; 
+                                        font-size: 9.5pt;
+                                    }
+                                    h1 { 
+                                        font-size: 20pt; 
+                                    }
+                                    h2 {
+                                        font-size: 11pt;
+                                    }
+                                    .section {
+                                        page-break-inside: avoid;
+                                    }
+                                }
+                                @page {
+                                    margin: 0.5in;
                                 }
                             </style>
                         </head>
                         <body>
-                            <h1>${name.toUpperCase()}</h1>
+                            <h1>${name}</h1>
                             <div class="contact">${contactParts.join(' | ')}</div>
                             ${sectionsHTML}
+                            <div style="margin-top: 40px; text-align: center; padding-top: 20px; border-top: 1px solid #e2e8f0; font-size: 8pt; color: #a0aec0;">
+                                Generated via CareerPilot AI | ${new Date().toLocaleDateString()}
+                            </div>
                         </body>
                     </html>
                 `);
@@ -533,7 +644,7 @@ export default function CVPage() {
             }
         } catch (err) {
             console.error('Failed to view resume:', err);
-            setError('Failed to view resume');
+            setError('Failed to view resume. Please try again.');
         }
     };
 
@@ -871,8 +982,8 @@ export default function CVPage() {
                             whileHover={{ y: -8, scale: 1.03, boxShadow: '0 20px 40px rgba(0, 0, 0, 0.15)' }}
                             whileTap={{ scale: 0.97 }}
                             onClick={action.onClick}
-                            className="rounded-2xl p-7 text-white cursor-pointer shadow-xl transition-all"
-                            style={{ backgroundImage: `linear-gradient(135deg, var(--tw-gradient-stops))`, boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)' }}
+                            className="bg-[#65cae1] rounded-2xl p-7 text-white cursor-pointer shadow-xl transition-all"
+                            style={{ boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)' }}
                         >
                             <div className="text-5xl mb-4">{action.icon}</div>
                             <h3 className="text-xl font-bold mb-2">{action.title}</h3>

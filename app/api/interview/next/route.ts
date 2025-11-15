@@ -78,10 +78,10 @@ Return a JSON object with this exact structure:
         }
 
         session.answers.push({
-            answer,
+            questionIndex: currentQuestionIndex,
+            transcript: answer,
             score: evaluation.score,
             feedback: evaluation.feedback,
-            answeredAt: new Date(),
         });
 
         const totalQuestions = session.mode === 'technical' ? 8 : session.mode === 'behavioral' ? 5 : 6;
@@ -106,7 +106,7 @@ INTERVIEW DETAILS:
 QUESTIONS AND ANSWERS:
 ${session.questions.map((q: any, idx: number) => `
 Q${idx + 1}: ${q.question}
-A${idx + 1}: ${session.answers[idx]?.answer || 'No answer provided'}
+A${idx + 1}: ${session.answers[idx]?.transcript || 'No answer provided'}
 Score: ${session.answers[idx]?.score || 0}/100
 `).join('\n')}
 
@@ -149,7 +149,7 @@ Return ONLY the feedback text, no JSON or formatting.`;
         // Generate next question using Gemini AI based on conversation history
         const conversationHistory = session.questions.map((q: any, idx: number) => `
 Q: ${q.question}
-A: ${session.answers[idx]?.answer || 'No answer'} (Score: ${session.answers[idx]?.score || 0}/100)
+A: ${session.answers[idx]?.transcript || 'No answer'} (Score: ${session.answers[idx]?.score || 0}/100)
 `).join('\n');
 
         const nextQuestionPrompt = `You are an experienced interviewer conducting a ${session.mode} interview for ${session.targetRole}.

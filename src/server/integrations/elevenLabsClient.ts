@@ -1,3 +1,4 @@
+import { ElevenLabsClient } from '@elevenlabs/elevenlabs-js';
 import { env } from '@/src/config/env';
 
 export interface TTSOptions {
@@ -7,43 +8,56 @@ export interface TTSOptions {
     similarityBoost?: number;
 }
 
+// Initialize ElevenLabs client
+const client = new ElevenLabsClient({
+    apiKey: env.elevenLabs.apiKey,
+});
+
 /**
- * ElevenLabs Text-to-Speech Client
+ * ElevenLabs Text-to-Speech Client using official SDK
  */
 export async function generateSpeech(options: TTSOptions): Promise<ArrayBuffer> {
     const apiKey = env.elevenLabs.apiKey;
-    const voiceId = options.voiceId || env.elevenLabs.voiceId || '21m00Tcm4TlvDq8ikWAM'; // Default voice
+    const voiceId = options.voiceId || env.elevenLabs.voiceId || 'Xb7hH8MSUJpSbSDYk0k2'; // Default voice
 
     if (!apiKey) {
         throw new Error('ELEVENLABS_API_KEY is not configured');
     }
 
-    const url = `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`;
-
     try {
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Accept': 'audio/mpeg',
-                'Content-Type': 'application/json',
-                'xi-api-key': apiKey,
+        const audio = await client.textToSpeech.convert(voiceId, {
+            text: options.text,
+            modelId: 'eleven_multilingual_v2', // Updated to free tier model
+            outputFormat: 'mp3_44100_128',
+            voiceSettings: {
+                stability: options.stability || 0.5,
+                similarityBoost: options.similarityBoost || 0.75,
             },
-            body: JSON.stringify({
-                text: options.text,
-                model_id: 'eleven_monolingual_v1',
-                voice_settings: {
-                    stability: options.stability || 0.5,
-                    similarity_boost: options.similarityBoost || 0.75,
-                },
-            }),
         });
 
-        if (!response.ok) {
-            const error = await response.text();
-            throw new Error(`ElevenLabs API error: ${response.status} - ${error}`);
+        // Convert ReadableStream to ArrayBuffer
+        const chunks: Uint8Array[] = [];
+        const reader = audio.getReader();
+
+        try {
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                chunks.push(value);
+            }
+        } finally {
+            reader.releaseLock();
         }
 
-        return await response.arrayBuffer();
+        const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
+        const result = new Uint8Array(totalLength);
+        let offset = 0;
+        for (const chunk of chunks) {
+            result.set(chunk, offset);
+            offset += chunk.length;
+        }
+
+        return result.buffer;
     } catch (error) {
         console.error('ElevenLabs TTS error:', error);
         throw error;
